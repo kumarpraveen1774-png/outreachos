@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>OutreachOS — Cold Email Manager</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  * { font-family: 'DM Sans', sans-serif; box-sizing: border-box; }
+  body { background: #09090b; color: #f4f4f5; margin: 0; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: #18181b; }
+  ::-webkit-scrollbar-thumb { background: #3f3f46; border-radius: 3px; }
+  textarea { font-family: 'DM Sans', sans-serif !important; }
+  .font-mono { font-family: 'DM Mono', monospace !important; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { animation: spin 1s linear infinite; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ─── EMAIL GENERATOR ───────────────────────────────────────────────────────
+
+function detectJobType(text) {
+  const t = text.toLowerCase();
+  const types = {
+    shorts: ["shorts","short-form","short form","reels","tiktok","60 sec","vertical video","hook","hooks"],
+    longform: ["long-form","long form","longform","youtube video","documentary","vlog","long video","podcast"],
+    retention: ["retention","audience retention","watch time","engagement","ctr","click through"],
+    agency: ["agency","team","multiple clients","ongoing","retainer","bulk"],
+    corporate: ["corporate","brand","marketing video","product video","commercial","promo"],
+    animation: ["motion graphics","animation","after effects","motion","animated"],
+  };
+  const detected = [];
+  for (const [type, keywords] of Object.entries(types)) {
+    if (keywords.some(kw => t.includes(kw))) detected.push(type);
+  }
+  return detected.length ? detected : ["general"];
+}
+
+function extractDetails(text) {
+  const t = text.toLowerCase();
+  const details = {};
+  if (t.includes("youtube")) details.platform = "YouTube";
+  else if (t.includes("tiktok")) details.platform = "TikTok";
+  else if (t.includes("instagram")) details.platform = "Instagram";
+  else details.platform = "your platform";
+  const niches = ["fitness","finance","crypto","gaming","tech","travel","food","fashion","education","real estate","health","beauty","music","sports","business","motivational","lifestyle"];
+  details.niche = niches.find(n => t.includes(n)) || null;
+  if (t.includes("asap") || t.includes("urgent") || t.includes("immediately")) details.urgent = true;
+  return details;
+}
+
+function generateSubject(types, details) {
+  const niche = details.niche ? ` ${details.niche.charAt(0).toUpperCase()+details.niche.slice(1)}` : "";
+  const platform = details.platform !== "your platform" ? ` ${details.platform}` : "";
+  if (types.includes("shorts")) return `Video Editor for${platform} Shorts — Let's Scale Your Channel`;
+  if (types.includes("retention")) return `Editor Who Gets Retention & Hooks — Available Now`;
+  if (types.includes("agency")) return `Reliable${niche} Editor for Your Agency — Long-Term Available`;
+  if (types.includes("longform")) return `Long-Form${platform}${niche} Editor — Ready to Start`;
+  if (types.includes("corporate")) return `Professional Video Editor — Brand-Ready Results`;
+  return `Video Editor for Your${niche}${platform} Channel — Let's Work`;
+}
+
+function generateFirstEmail(types, details, clientName) {
+  const name = clientName && clientName.trim() ? clientName.split(" ")[0] : null;
+  const greeting = name ? `Hi ${name},` : "Hi there,";
+  const platform = details.platform;
+  const niche = details.niche;
+  const nicheStr = niche ? ` ${niche}` : "";
+  const urgent = details.urgent ? "\n\nI'm available to start immediately." : "";
+
+  if (types.includes("shorts")) {
+    return `${greeting}
+
+I came across your job post and I specialize in exactly what you're looking for — high-retention${nicheStr} Shorts that hook viewers in the first 3 seconds and keep them watching.
+
+I understand that Shorts live or die by the hook and the edit pacing. My editing style is built around pattern interrupts, tight cuts, and captions that drive completions — not just views.${urgent}
+
+Would love to send over some samples relevant to your niche. Worth a quick look?
+
+Best,
+[Your Name]`;
+  }
+
+  if (types.includes("retention")) {
+    return `${greeting}
+
+Your job post caught my attention — specifically the focus on retention. That's actually what I obsess over as an editor.
+
+I approach every video with a "why would someone click off here?" mindset. I use strategic re-engagement hooks, visual cues, and pacing adjustments to keep viewers locked in.${urgent}
+
+Happy to share past work with retention data if that helps. Interested?
+
+Best,
+[Your Name]`;
+  }
+
+  if (types.includes("longform")) {
+    return `${greeting}
+
+Saw your post for a long-form editor and I think there's a strong fit here.
+
+Long-form${nicheStr} content is my primary focus — I'm good at structuring narratives, removing dead air without losing flow, and adding the kind of visual polish that keeps a ${platform} audience engaged for 10+ minutes.${urgent}
+
+I'd love to share a couple of relevant samples. Can I send them over?
+
+Best,
+[Your Name]`;
+  }
+
+  if (types.includes("agency")) {
+    return `${greeting}
+
+Your post stood out to me — I've been looking to work with an agency that has consistent volume and high standards.
+
+I'm experienced working across${nicheStr} niches and I can handle multiple videos efficiently without sacrificing quality. I adapt fast to different styles and I'm easy to work with asynchronously.${urgent}
+
+Would love to discuss what a long-term workflow could look like. Open to a quick call?
+
+Best,
+[Your Name]`;
+  }
+
+  return `${greeting}
+
+I came across your job post and I'm confident I can deliver exactly what you're looking for.
+
+I'm a video editor with experience in${nicheStr} ${platform} content — I focus on clean storytelling, tight pacing, and edits that actually perform. I take the time to understand your content's goals before I make a single cut.${urgent}
+
+I'd love to share some relevant samples. Would that be useful?
+
+Best,
+[Your Name]`;
+}
+
+function generateFollowUp2(types, details, clientName) {
+  const name = clientName && clientName.trim() ? clientName.split(" ")[0] : null;
+  const greeting = name ? `Hi ${name},` : "Hey,";
+  if (types.includes("shorts")) {
+    return `${greeting}
+
+Just following up on my message from yesterday about your Shorts editing role.
+
+I know inboxes get busy — wanted to make sure this didn't slip through. I'm genuinely excited about this one because Shorts strategy + editing is a niche I've invested a lot of time into.
+
+Happy to send samples or hop on a quick call. Let me know either way!
+
+[Your Name]`;
+  }
+  return `${greeting}
+
+Just checking in on my message from yesterday — wanted to make sure it didn't get buried.
+
+I'm still very interested in the role and would love to share some work samples if helpful. Takes 5 minutes and I think it'd be worth it.
+
+Let me know!
+
+[Your Name]`;
+}
+
+function generateFollowUp5(types, details, clientName) {
+  const name = clientName && clientName.trim() ? clientName.split(" ")[0] : null;
+  const greeting = name ? `Hi ${name},` : "Hey,";
+  return `${greeting}
+
+Last follow-up from me — I know you're busy and I don't want to be a nuisance.
+
+I'm still interested in helping with your video editing, and I'm confident I can deliver something you'd be happy with. If the timing isn't right now, no worries at all — feel free to reach out whenever you're ready.
+
+Wishing you the best with your search either way.
+
+[Your Name]`;
+}
+
+function generateEmails(jobText, clientName) {
+  if (!jobText || jobText.trim().length < 10) return null;
+  const types = detectJobType(jobText);
+  const details = extractDetails(jobText);
+  return {
+    subject: generateSubject(types, details),
+    firstEmail: generateFirstEmail(types, details, clientName),
+    followUp2: generateFollowUp2(types, details, clientName),
+    followUp5: generateFollowUp5(types, details, clientName),
+  };
+}
+
+// ─── CONSTANTS ───────────────────────────────────────────────────────────────
+
+const STATUS_OPTIONS = ["Not Sent","Sent","Followed Up 1","Followed Up 2","Replied","Closed"];
+const STATUS_COLORS = {
+  "Not Sent": { bg: "#27272a", text: "#a1a1aa", dot: "#71717a" },
+  "Sent": { bg: "#172554", text: "#93c5fd", dot: "#60a5fa" },
+  "Followed Up 1": { bg: "#451a03", text: "#fcd34d", dot: "#f59e0b" },
+  "Followed Up 2": { bg: "#431407", text: "#fdba74", dot: "#f97316" },
+  "Replied": { bg: "#052e16", text: "#6ee7b7", dot: "#10b981" },
+  "Closed": { bg: "#450a0a", text: "#fca5a5", dot: "#ef4444" },
+};
+
+function createRow() {
+  return {
+    id: Math.random().toString(36).slice(2),
+    clientEmail: "", clientName: "", jobPost: "",
+    firstEmail: "", subject: "", followUp2: "", followUp5: "",
+    status: "Not Sent",
+    dateAdded: new Date().toLocaleDateString("en-GB", { day:"2-digit", month:"short", year:"numeric" }),
+    generating: false,
+  };
+}
+
+// ─── COMPONENTS ──────────────────────────────────────────────────────────────
+
+function CopyBtn({ text, label }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    });
+  };
+  return (
+    <button onClick={copy} style={{
+      display:"inline-flex", alignItems:"center", gap:4, padding:"3px 8px",
+      borderRadius:6, fontSize:11, fontWeight:500, cursor:"pointer", border:"1px solid",
+      background: copied ? "rgba(16,185,129,0.15)" : "rgba(63,63,70,0.6)",
+      color: copied ? "#6ee7b7" : "#a1a1aa",
+      borderColor: copied ? "rgba(16,185,129,0.4)" : "rgba(82,82,91,0.5)",
+      transition:"all 0.2s"
+    }}>
+      {copied ? "✓ Copied" : "⎘ Copy"}
+    </button>
+  );
+}
+
+function AutoTextarea({ value, onChange, placeholder, rows=3 }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (ref.current) { ref.current.style.height="auto"; ref.current.style.height=ref.current.scrollHeight+"px"; }
+  }, [value]);
+  return (
+    <textarea ref={ref} value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows}
+      onInput={e=>{ e.target.style.height="auto"; e.target.style.height=e.target.scrollHeight+"px"; }}
+      style={{
+        width:"100%", background:"transparent", color:"#e4e4e7", fontSize:12,
+        lineHeight:1.6, resize:"none", outline:"none", border:"none", padding:"2px 4px",
+        minHeight:40, overflow:"hidden", fontFamily:"'DM Sans',sans-serif"
+      }}
+    />
+  );
+}
+
+function StatusDropdown({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const c = STATUS_COLORS[value] || STATUS_COLORS["Not Sent"];
+  useEffect(() => {
+    const h = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, []);
+  return (
+    <div ref={ref} style={{position:"relative"}}>
+      <button onClick={()=>setOpen(!open)} style={{
+        display:"inline-flex", alignItems:"center", gap:6, padding:"5px 10px",
+        borderRadius:20, fontSize:11, fontWeight:600, cursor:"pointer",
+        background:c.bg, color:c.text, border:"none", whiteSpace:"nowrap"
+      }}>
+        <span style={{width:6,height:6,borderRadius:"50%",background:c.dot,flexShrink:0}} />
+        {value} ▾
+      </button>
+      {open && (
+        <div style={{
+          position:"absolute", zIndex:999, top:"100%", marginTop:4, left:0,
+          background:"#18181b", border:"1px solid #3f3f46", borderRadius:12,
+          overflow:"hidden", minWidth:160, boxShadow:"0 20px 40px rgba(0,0,0,0.5)"
+        }}>
+          {STATUS_OPTIONS.map(opt => {
+            const sc = STATUS_COLORS[opt];
+            return (
+              <button key={opt} onClick={()=>{ onChange(opt); setOpen(false); }} style={{
+                display:"flex", alignItems:"center", gap:8, width:"100%", padding:"8px 12px",
+                fontSize:12, fontWeight:500, cursor:"pointer", border:"none",
+                background: value===opt ? "#27272a" : "transparent",
+                color: sc.text, textAlign:"left"
+              }}>
+                <span style={{width:6,height:6,borderRadius:"50%",background:sc.dot,flexShrink:0}} />
+                {opt}
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Row({ row, index, onUpdate, onDelete }) {
+  const update = field => val => onUpdate(row.id, field, val);
+
+  const handleGenerate = () => {
+    if (!row.jobPost.trim()) return;
+    onUpdate(row.id, "generating", true);
+    setTimeout(() => {
+      const result = generateEmails(row.jobPost, row.clientName);
+      if (result) {
+        onUpdate(row.id, "__batch__", { ...result, generating: false });
+      } else {
+        onUpdate(row.id, "generating", false);
+      }
+    }, 700);
+  };
+
+  const tdStyle = { padding:"10px 12px", borderBottom:"1px solid #27272a", verticalAlign:"top" };
+
+  return (
+    <tr style={{ background: row.generating ? "rgba(99,102,241,0.03)" : "transparent", transition:"background 0.3s" }}
+      onMouseEnter={e=>e.currentTarget.style.background="rgba(255,255,255,0.02)"}
+      onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
+
+      {/* # */}
+      <td style={{...tdStyle, textAlign:"center", color:"#52525b", fontSize:11, fontFamily:"'DM Mono',monospace", width:40}}>
+        {String(index+1).padStart(2,"0")}
+      </td>
+
+      {/* Client Email */}
+      <td style={{...tdStyle, minWidth:160}}>
+        <input value={row.clientEmail} onChange={e=>update("clientEmail")(e.target.value)}
+          placeholder="client@email.com"
+          style={{width:"100%",background:"transparent",color:"#e4e4e7",fontSize:12,outline:"none",border:"none",padding:"2px 4px"}} />
+      </td>
+
+      {/* Client Name */}
+      <td style={{...tdStyle, minWidth:140}}>
+        <input value={row.clientName} onChange={e=>update("clientName")(e.target.value)}
+          placeholder="Name / Company"
+          style={{width:"100%",background:"transparent",color:"#e4e4e7",fontSize:12,outline:"none",border:"none",padding:"2px 4px"}} />
+      </td>
+
+      {/* Job Post */}
+      <td style={{...tdStyle, minWidth:220}}>
+        <AutoTextarea value={row.jobPost} onChange={update("jobPost")} placeholder="Paste job post here…" rows={3} />
+        <button onClick={handleGenerate} disabled={!row.jobPost.trim()||row.generating} style={{
+          display:"inline-flex", alignItems:"center", gap:6, marginTop:6,
+          padding:"5px 12px", borderRadius:8, fontSize:11, fontWeight:600,
+          background: row.generating||!row.jobPost.trim() ? "#3730a3" : "#4f46e5",
+          color:"white", border:"none", cursor: row.jobPost.trim()&&!row.generating ? "pointer" : "not-allowed",
+          opacity: !row.jobPost.trim() ? 0.4 : 1, transition:"all 0.2s"
+        }}>
+          {row.generating ? <span style={{display:"inline-block"}} className="spin">↻</span> : "⚡"}
+          {row.generating ? " Generating…" : " Generate All"}
+        </button>
+      </td>
+
+      {/* Subject */}
+      <td style={{...tdStyle, minWidth:200}}>
+        <AutoTextarea value={row.subject} onChange={update("subject")} placeholder="Subject line…" rows={2} />
+        {row.subject && <CopyBtn text={row.subject} label="Subject" />}
+      </td>
+
+      {/* First Email */}
+      <td style={{...tdStyle, minWidth:240}}>
+        <AutoTextarea value={row.firstEmail} onChange={update("firstEmail")} placeholder="First email will appear here…" rows={4} />
+        {row.firstEmail && <CopyBtn text={row.firstEmail} label="First Email" />}
+      </td>
+
+      {/* Follow-up Day 2 */}
+      <td style={{...tdStyle, minWidth:220}}>
+        <AutoTextarea value={row.followUp2} onChange={update("followUp2")} placeholder="Day 2 follow-up…" rows={4} />
+        {row.followUp2 && <CopyBtn text={row.followUp2} label="Day 2" />}
+      </td>
+
+      {/* Follow-up Day 5 */}
+      <td style={{...tdStyle, minWidth:220}}>
+        <AutoTextarea value={row.followUp5} onChange={update("followUp5")} placeholder="Day 5 follow-up…" rows={4} />
+        {row.followUp5 && <CopyBtn text={row.followUp5} label="Day 5" />}
+      </td>
+
+      {/* Status */}
+      <td style={{...tdStyle, minWidth:150}}>
+        <StatusDropdown value={row.status} onChange={update("status")} />
+      </td>
+
+      {/* Date */}
+      <td style={{...tdStyle, minWidth:100, fontSize:11, color:"#52525b", whiteSpace:"nowrap", fontFamily:"'DM Mono',monospace"}}>
+        {row.dateAdded}
+      </td>
+
+      {/* Delete */}
+      <td style={{...tdStyle, width:40}}>
+        <button onClick={()=>onDelete(row.id)} title="Delete row" style={{
+          padding:6, borderRadius:6, border:"none", background:"transparent",
+          color:"#52525b", cursor:"pointer", fontSize:14, transition:"all 0.2s"
+        }}
+          onMouseEnter={e=>{e.target.style.color="#ef4444";e.target.style.background="rgba(239,68,68,0.1)"}}
+          onMouseLeave={e=>{e.target.style.color="#52525b";e.target.style.background="transparent"}}>
+          🗑
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+// ─── MAIN APP ────────────────────────────────────────────────────────────────
+
+function App() {
+  const [rows, setRows] = useState(() => {
+    try { const s = localStorage.getItem("outreachos_v3"); return s ? JSON.parse(s) : [createRow()]; } catch { return [createRow()]; }
+  });
+  const [search, setSearch] = useState("");
+  const [filterStatus, setFilterStatus] = useState("All");
+
+  useEffect(() => {
+    try { localStorage.setItem("outreachos_v3", JSON.stringify(rows)); } catch {}
+  }, [rows]);
+
+  const addRow = () => setRows(prev => [...prev, createRow()]);
+
+  const updateRow = useCallback((id, field, value) => {
+    setRows(prev => prev.map(r => {
+      if (r.id !== id) return r;
+      if (field === "__batch__") return { ...r, ...value };
+      return { ...r, [field]: value };
+    }));
+  }, []);
+
+  const deleteRow = useCallback((id) => {
+    setRows(prev => prev.filter(r => r.id !== id));
+  }, []);
+
+  const filtered = rows.filter(r => {
+    const s = search.toLowerCase();
+    const matchSearch = !search || r.clientEmail.toLowerCase().includes(s) || r.clientName.toLowerCase().includes(s) || r.jobPost.toLowerCase().includes(s);
+    const matchStatus = filterStatus === "All" || r.status === filterStatus;
+    return matchSearch && matchStatus;
+  });
+
+  const stats = {
+    total: rows.length,
+    sent: rows.filter(r=>r.status==="Sent").length,
+    replied: rows.filter(r=>r.status==="Replied").length,
+    followedUp: rows.filter(r=>r.status==="Followed Up 1"||r.status==="Followed Up 2").length,
+  };
+
+  const thStyle = { padding:"10px 12px", textAlign:"left", fontSize:11, fontWeight:600, color:"#71717a", textTransform:"uppercase", letterSpacing:"0.08em", background:"#111113", borderBottom:"1px solid #27272a", whiteSpace:"nowrap" };
+
+  return (
+    <div style={{minHeight:"100vh", background:"#09090b"}}>
+      {/* Header */}
+      <div style={{borderBottom:"1px solid #27272a", background:"rgba(9,9,11,0.95)", position:"sticky", top:0, zIndex:100, backdropFilter:"blur(20px)"}}>
+        <div style={{padding:"14px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:12}}>
+          {/* Logo */}
+          <div style={{display:"flex", alignItems:"center", gap:10}}>
+            <div style={{width:32,height:32,borderRadius:10,background:"#4f46e5",display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🎬</div>
+            <div>
+              <div style={{fontWeight:700, fontSize:15, color:"#f4f4f5"}}>OutreachOS</div>
+              <div style={{fontSize:11, color:"#52525b"}}>YouTube & Video Editing Cold Email Manager</div>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div style={{display:"flex", gap:8, flexWrap:"wrap"}}>
+            {[
+              {label:"Total", value:stats.total, color:"#e4e4e7"},
+              {label:"Sent", value:stats.sent, color:"#60a5fa"},
+              {label:"Follow-ups", value:stats.followedUp, color:"#f59e0b"},
+              {label:"Replied", value:stats.replied, color:"#10b981"},
+            ].map(s => (
+              <div key={s.label} style={{display:"flex",alignItems:"center",gap:6,background:"#18181b",border:"1px solid #27272a",borderRadius:8,padding:"4px 10px"}}>
+                <span style={{fontWeight:700,fontSize:14,color:s.color}}>{s.value}</span>
+                <span style={{fontSize:11,color:"#71717a"}}>{s.label}</span>
+              </div>
+            ))}
+          </div>
+
+          <button onClick={addRow} style={{
+            display:"inline-flex", alignItems:"center", gap:6, padding:"8px 16px",
+            borderRadius:10, background:"#4f46e5", color:"white", border:"none",
+            fontSize:13, fontWeight:600, cursor:"pointer"
+          }}>+ Add Row</button>
+        </div>
+
+        {/* Search + Filter */}
+        <div style={{padding:"0 24px 12px", display:"flex", alignItems:"center", gap:10, flexWrap:"wrap"}}>
+          <div style={{position:"relative", flex:1, minWidth:200, maxWidth:320}}>
+            <span style={{position:"absolute",left:10,top:"50%",transform:"translateY(-50%)",color:"#71717a",fontSize:14}}>🔍</span>
+            <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search clients, job posts…"
+              style={{width:"100%",background:"#18181b",border:"1px solid #3f3f46",borderRadius:10,padding:"7px 10px 7px 32px",fontSize:13,color:"#e4e4e7",outline:"none"}} />
+          </div>
+
+          <div style={{display:"flex", gap:6, flexWrap:"wrap"}}>
+            {["All",...STATUS_OPTIONS].map(opt => {
+              const active = filterStatus===opt;
+              const c = opt!=="All" ? STATUS_COLORS[opt] : null;
+              return (
+                <button key={opt} onClick={()=>setFilterStatus(opt)} style={{
+                  padding:"5px 12px", borderRadius:8, fontSize:11, fontWeight:500, cursor:"pointer",
+                  border: active ? "none" : "1px solid #27272a",
+                  background: active ? (opt==="All" ? "#f4f4f5" : c.bg) : "transparent",
+                  color: active ? (opt==="All" ? "#09090b" : c.text) : "#71717a",
+                  transition:"all 0.2s"
+                }}>{opt}</button>
+              );
+            })}
+          </div>
+
+          <span style={{fontSize:11,color:"#3f3f46",marginLeft:"auto"}}>
+            {filtered.length} of {rows.length} rows
+            {rows.length > 0 && <span style={{color:"#16a34a",marginLeft:8}}>● Auto-saved</span>}
+          </span>
+        </div>
+      </div>
+
+      {/* Table */}
+      <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead>
+            <tr>
+              {["#","Client Email","Client Name / Company","Job Post + Generate","Subject Line","First Email","Follow-up Day 2","Follow-up Day 5","Status","Date Added",""].map(h => (
+                <th key={h} style={thStyle}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 ? (
+              <tr>
+                <td colSpan={11} style={{padding:"60px 20px", textAlign:"center", color:"#52525b", fontSize:14}}>
+                  {search||filterStatus!=="All" ? "No matching rows found." : 'No rows yet. Click "+ Add Row" to get started.'}
+                </td>
+              </tr>
+            ) : (
+              filtered.map((row, i) => (
+                <Row key={row.id} row={row} index={rows.indexOf(row)} onUpdate={updateRow} onDelete={deleteRow} />
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Footer */}
+      <div style={{borderTop:"1px solid #1c1c1f",padding:"14px 24px",display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:40}}>
+        <span style={{fontSize:12,color:"#3f3f46"}}>OutreachOS — Data saved in your browser. Free forever. ✅</span>
+        <button onClick={()=>{ if(window.confirm("Delete ALL rows? This cannot be undone.")) setRows([createRow()]); }}
+          style={{fontSize:12,color:"#7f1d1d",background:"transparent",border:"none",cursor:"pointer"}}>
+          Clear All
+        </button>
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
